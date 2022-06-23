@@ -11,16 +11,15 @@ def move_to_note(note,old_note):
 if __name__ == "__main__":
 	print('SSPlusBot v0.0.1')
 	song = [[float(n) for n in note.split('|')] for note in input('Paste song data string here:\n').split(',')[1:]]
-	print('Song loaded')
-	while not win32api.GetAsyncKeyState(ord('P')):
+	print('Song loaded, press F7 to start')
+	while not win32api.GetAsyncKeyState(win32con.VK_F7):
 		time.sleep(0.01)
-
 	old_note = [1.0,1.0,0]
 	dtime = time.time()
 	offset = 320
 	print(f'Offset set to 320ms',end='                     ')
 	while len(song):
-		if dtime <= (dtime + (song[0][3]+offset)/1000) <= time.time():
+		if dtime <= (dtime + (song[0][2]+offset)/1000) <= time.time():
 			move_to_note(song[0],old_note)
 			old_note = song.pop(0)
 		if win32api.GetAsyncKeyState(win32con.VK_RIGHT):
@@ -37,4 +36,4 @@ if __name__ == "__main__":
 				print(f'\rOffset set to {offset}ms',end='                     ')
 		else:
 			kl = True
-	print('Song finished!')
+	print('\nSong finished!')
