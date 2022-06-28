@@ -56,8 +56,32 @@ def load_sspm(file):
 	else:
 		raise AssertionError('Unsupported map version!')
 
+def paginated_picker(dictionary: dict, message: str, items: int = 10):
+	page = 0
+	dkeys = list(dictionary.keys())
+	dkeys.sort()
+	while True:
+		print(f'\x1b[H\x1b[2J\x1b[3J{message}')
+		for i, key in enumerate(dkeys[page*items:(1+page)*items]):
+			print(f'[{i}] {key}')
+		print(f'\nPage {page}/{len(dictionary)//items}\n[.] Next page\n[,] Previous page\n[j###] Jump to page')
+		i = input('> ')
+		try:
+			return (dkeys[(page*items)+int(i)],dictionary[dkeys[(page*items)+int(i)]])
+		except ValueError: pass
+		if i == ',':
+			page = (page-1)%(math.ceil(len(dictionary)/items))
+		elif i == '.':
+			page = (page+1)%(math.ceil(len(dictionary)/items))
+		elif i.startswith('j'):
+			try:
+				page = int(i[1:])%(math.ceil(len(dictionary)/items))
+			except:
+				pass
+		
+
 def main():
-	print('''\x1b[H\x1b[2JStarting SSBot. Don't use this to fake a score, you won't get away with it.''')
+	print('''\x1b[H\x1b[2J\x1b[3JStarting SSBot. Don't use this to fake a score, you won't get away with it.''')
 	if Path('./config.json').exists():
 		try:
 			with open('./config.json','r') as config_file:
@@ -74,21 +98,22 @@ def main():
 3: Uncheck "Lock Mouse".''')
 		do_config = True
 	if do_config:
+		config = {}
 		easings = {k:v for k,v in easing_functions.__dict__.items() if (not k.startswith('__')) and (k != 'easing')}
-		print('Pick an easing function to use:')
-		for i, easing in enumerate(easings):
-			print(f'[{i}] {easing}')
-		while (i := int(input('> '))) not in range(len(easings.keys())): pass
+		easing_name, easing = paginated_picker(easings,"Pick an easing function to use:",5)
+		easing = easing(start=0,end=1)
 		with open('./config.json','w+') as config_file:
-			config = {'easing':list(easings.keys())[i]}
+			config['easing'] = easing_name
 			json.dump(config,config_file)
-	easing = easing_functions.__dict__[config['easing']](start=0,end=1)
+		input(easing_name)
+	else:
+		easing = easing_functions.__dict__[config['easing']](start=0,end=1)
 	def move_to(x,y,center):
 		x, y = ((1-x)*55.3333333333)+center[0], ((1-y)*55.3333333333)+center[1]
 		mouse.move(x,y)
 	is_text = True
 	while True:
-		i = input('\x1b[H\x1b[2JInput a song with:\n[1] Raw data [paste in]\n[1] Raw data [.txt]\n[3] SS+ map file [.sspm]\n[4] SS+ map pack [.sspmr] (Legacy)\n[5] Vulnus map [.json]\n')
+		i = input('\x1b[H\x1b[2J\x1b[3JInput a song with:\n[1] Raw data [paste in]\n[2] Raw data [.txt]\n[3] SS+ map file [.sspm]\n[4] SS+ map pack [.sspmr] (Legacy)\n[5] Vulnus map [.json]\n')
 		if i == '1':
 			song_raw = [[float(n) for n in note.split('|')] for note in input('Input song data: ').split(',')[1:]]
 		else:
@@ -113,24 +138,11 @@ def main():
 							else:
 								s = line.split(':~:')
 								songs[s[2]] = s[-1] #name: data
-					page = 0
-					while True:
-						print("\x1b[H\x1b[2J", end="")
-						song_names = list(songs.keys())
-						song_names.sort()
-						for i, name in enumerate(song_names[page*10:(1+page)*10]):
-							print(f'[{i}] {name}')
-						print(f'\nPage {page}/{len(songs)//10}\n[.] Next page\n[,] Previous page')
-						i = input('> ')
-						if i in [str(n) for n in range(10)]: #isnumeric sucks
-							song_raw = [[float(n) for n in note.split('|')] for note in songs[song_names[page*10+int(i)]].split(',')[1:]]
-							break
-						elif i == ',':
-							page = (page-1)%math.ceil(len(songs)/10)
-						elif i == '.':
-							page = (page+1)%(len(songs)//10)
+					name, song_data = paginated_picker(songs,"Pick a song to play:",10)
+					print(song_data)
+					song_raw = [[float(n) for n in note.split('|')] for note in song_data.split(',')[1:]]
 				case _:
-					print("\x1b[H\x1b[2J", end="")
+					print("\x1b[H\x1b[2J\x1b[3J", end="")
 					continue
 		break
 	song = []
@@ -147,7 +159,7 @@ def main():
 			notes.append(note)
 	if len(notes):
 		song.append([avg([note[0] for note in notes]),avg([note[1] for note in notes]),notes[0][2]])
-	print('Song loaded, click play\nPress F7 when the first note is at the timing window to start')
+	print('\x1b[H\x1b[2J\x1b[3JSong loaded, click play\nPress F7 when the first note is at the timing window to start')
 	keyboard.wait(65) #wait for F7
 	center = mouse.get_position()
 	old_time = time.perf_counter()
@@ -165,7 +177,7 @@ def main():
 		except ZeroDivisionError:
 			delta = 1
 		move_to(*[(old*(1-delta))+(new*delta) for old, new in zip(old_note[:2],note[:2])],center)
-		if delta >= 1:
+		if t >= 1:
 			old_note = song.pop(0)
 		if keyboard.is_pressed(77):
 			if kr:
