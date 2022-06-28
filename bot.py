@@ -88,6 +88,8 @@ def main():
 				config = json.load(config_file)
 			i = input('Would you like to reset config?\n[Y] for yes, [Not Y] for no\n')
 			do_config = i.lower() == 'y'
+		except KeyboardInterrupt:
+			raise #catch KeyboardInterrupt correctly here
 		except:
 			print('Config file invalid, resetting config...')
 			do_config = True
@@ -105,13 +107,11 @@ def main():
 		with open('./config.json','w+') as config_file:
 			config['easing'] = easing_name
 			json.dump(config,config_file)
-		input(easing_name)
 	else:
 		easing = easing_functions.__dict__[config['easing']](start=0,end=1)
 	def move_to(x,y,center):
 		x, y = ((1-x)*55.3333333333)+center[0], ((1-y)*55.3333333333)+center[1]
 		mouse.move(x,y)
-	is_text = True
 	while True:
 		i = input('\x1b[H\x1b[2J\x1b[3JInput a song with:\n[1] Raw data [paste in]\n[2] Raw data [.txt]\n[3] SS+ map file [.sspm]\n[4] SS+ map pack [.sspmr] (Legacy)\n[5] Vulnus map [.json]\n')
 		if i == '1':
