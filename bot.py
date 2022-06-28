@@ -1,3 +1,5 @@
+import math
+import os
 import time
 import json
 import struct
@@ -55,7 +57,7 @@ def load_sspm(file):
 		raise AssertionError('Unsupported map version!')
 
 def main():
-	print('''Starting SSBot. Don't use this to fake a score, you won't get away with it.''')
+	print('''\x1b[H\x1b[2JStarting SSBot. Don't use this to fake a score, you won't get away with it.''')
 	if Path('./config.json').exists():
 		try:
 			with open('./config.json','r') as config_file:
@@ -86,24 +88,50 @@ def main():
 		mouse.move(x,y)
 	is_text = True
 	while True:
-		i = input('Input a song with:\n[1] Raw data [paste in]\n[1] Raw data [.txt]\n[3] SS+ map file [.sspm]\n')
-		match i:
-			case '1':
-				song_raw = [[float(n) for n in note.split('|')] for note in input('Input song data: ').split(',')[1:]]
-			case '2':
-				while (not Path(i := input('Input file path: ')).exists()): pass
-				with open(i,'r') as f:
-					song_raw = [[float(n) for n in note.split('|')] for note in f.read().split(',')[1:]]
-				break
-			case '3':
-				while (not Path(i := input('Input file path: ')).exists()): pass
-				try:
-					with open(i,'rb') as f:
-						song_raw = load_sspm(f)
-				except AssertionError as e:
-					print(f'Error while parsing map!\n{e.args[0]}\n')
-			case _:
-				continue
+		i = input('\x1b[H\x1b[2JInput a song with:\n[1] Raw data [paste in]\n[1] Raw data [.txt]\n[3] SS+ map file [.sspm]\n[4] SS+ map pack [.sspmr] (Legacy)\n[5] Vulnus map [.json]\n')
+		if i == '1':
+			song_raw = [[float(n) for n in note.split('|')] for note in input('Input song data: ').split(',')[1:]]
+		else:
+			while (not Path(f_path := input('Input file path: ')).exists()): pass
+			match i:
+				case '2':
+					with open(f_path,'r') as f:
+						song_raw = [[float(n) for n in note.split('|')] for note in f.read().split(',')[1:]]
+					break
+				case '3':
+					try:
+						with open(f_path,'rb') as f:
+							song_raw = load_sspm(f)
+					except AssertionError as e:
+						print(f'Error while parsing map!\n{e.args[0]}\n')
+				case '4':
+					songs = {}
+					with open(f_path,'r') as f:
+						for line in f.readlines():
+							if line.startswith('#'):
+								pass
+							else:
+								s = line.split(':~:')
+								songs[s[2]] = s[-1] #name: data
+					page = 0
+					while True:
+						print("\x1b[H\x1b[2J", end="")
+						song_names = list(songs.keys())
+						song_names.sort()
+						for i, name in enumerate(song_names[page*10:(1+page)*10]):
+							print(f'[{i}] {name}')
+						print(f'\nPage {page}/{len(songs)//10}\n[.] Next page\n[,] Previous page')
+						i = input('> ')
+						if i in [str(n) for n in range(10)]: #isnumeric sucks
+							song_raw = [[float(n) for n in note.split('|')] for note in songs[song_names[page*10+int(i)]].split(',')[1:]]
+							break
+						elif i == ',':
+							page = (page-1)%math.ceil(len(songs)/10)
+						elif i == '.':
+							page = (page+1)%(len(songs)//10)
+				case _:
+					print("\x1b[H\x1b[2J", end="")
+					continue
 		break
 	song = []
 	notes = []
