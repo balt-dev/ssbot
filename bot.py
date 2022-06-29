@@ -121,7 +121,12 @@ def main():
 			match i:
 				case '2':
 					with open(f_path,'r') as f:
-						song_raw = [[float(n) for n in note.split('|')] for note in f.read().split(',')[1:]]
+						song_raw = []
+						for note in f.read().split(',')[1:]:
+							try:
+								song_raw.append([float(n) for n in note.split('|')])
+							except ValueError:
+								pass
 					break
 				case '3':
 					try:
@@ -139,8 +144,12 @@ def main():
 								s = line.split(':~:')
 								songs[s[2]] = s[-1] #name: data
 					name, song_data = paginated_picker(songs,"Pick a song to play:",10)
-					print(song_data)
-					song_raw = [[float(n) for n in note.split('|')] for note in song_data.split(',')[1:]]
+					song_raw = []
+					for note in song_data.split(',')[1:]:
+						try:
+							song_raw.append([float(n) for n in note.split('|')])
+						except ValueError:
+							pass
 				case _:
 					print("\x1b[H\x1b[2J\x1b[3J", end="")
 					continue
