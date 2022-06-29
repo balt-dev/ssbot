@@ -3,8 +3,10 @@ import os
 import time
 import json
 import struct
+import traceback
 import easing_functions
 from pathlib import Path
+import zipfile
 
 try:
 	import mouse, keyboard
@@ -113,47 +115,73 @@ def main():
 		x, y = ((1-x)*55.3333333333)+center[0], ((1-y)*55.3333333333)+center[1]
 		mouse.move(x,y)
 	while True:
-		i = input('\x1b[H\x1b[2J\x1b[3JInput a song with:\n[1] Raw data [paste in]\n[2] Raw data [.txt]\n[3] SS+ map file [.sspm]\n[4] SS+ map pack [.sspmr] (Legacy)\n[5] Vulnus map [.json]\n')
-		if i == '1':
-			song_raw = [[float(n) for n in note.split('|')] for note in input('Input song data: ').split(',')[1:]]
-		else:
-			while (not Path(f_path := input('Input file path: ')).exists()): pass
-			match i:
-				case '2':
-					with open(f_path,'r') as f:
+		try:
+			i = input('\x1b[H\x1b[2J\x1b[3JInput a song with:\n[1] Raw data [paste in]\n[2] Raw data [.txt]\n[3] SS+ map file [.sspm]\n[4] SS+ map pack [.sspmr] (Legacy)\n[5] Vulnus map [.zip]\n')
+			if i == '1':
+				for note in input('Input song data: ').split(',')[1:]:
+					try:
+						song_raw.append([float(n) for n in note.split('|')])
+					except ValueError:
+						pass
+			else:
+				if len(i):
+					while (not Path(f_path := input('Input file path: ')).exists()): pass
+				match i:
+					case '2':
+						with open(f_path,'r') as f:
+							song_raw = []
+							for note in f.read().split(',')[1:]:
+								try:
+									song_raw.append([float(n) for n in note.split('|')])
+								except ValueError:
+									pass
+						break
+					case '3':
+						try:
+							with open(f_path,'rb') as f:
+								song_raw = load_sspm(f)
+						except AssertionError as e:
+							print(f'There\'s a problem with this map.\n{e.args[0]}')
+							input('Press enter to import a different map...')
+							continue
+					case '4':
+						songs = {}
+						with open(f_path,'r') as f:
+							for line in f.readlines():
+								if line.startswith('#'):
+									pass
+								else:
+									s = line.split(':~:')
+									songs[s[2]] = s[-1] #name: data
+						name, song_data = paginated_picker(songs,"Pick a song to play:",10)
 						song_raw = []
-						for note in f.read().split(',')[1:]:
+						for note in song_data.split(',')[1:]:
 							try:
 								song_raw.append([float(n) for n in note.split('|')])
 							except ValueError:
 								pass
-					break
-				case '3':
-					try:
+					case '5':
 						with open(f_path,'rb') as f:
-							song_raw = load_sspm(f)
-					except AssertionError as e:
-						print(f'Error while parsing map!\n{e.args[0]}\n')
-				case '4':
-					songs = {}
-					with open(f_path,'r') as f:
-						for line in f.readlines():
-							if line.startswith('#'):
-								pass
-							else:
-								s = line.split(':~:')
-								songs[s[2]] = s[-1] #name: data
-					name, song_data = paginated_picker(songs,"Pick a song to play:",10)
-					song_raw = []
-					for note in song_data.split(',')[1:]:
-						try:
-							song_raw.append([float(n) for n in note.split('|')])
-						except ValueError:
-							pass
-				case _:
-					print("\x1b[H\x1b[2J\x1b[3J", end="")
-					continue
-		break
+							v_song = zipfile.ZipFile(f)
+							with v_song.open('meta.json') as meta:
+								meta = json.load(meta)
+							with v_song.open(meta['_difficulties'][0]) as map_data:
+								map_data = json.load(map_data)
+							song_raw = []
+							for note in (notes := map_data['_notes']):
+								song_raw.append([1-note['_x'],note['_y']+1,int(note['_time']*1000)])
+					case _:
+						print("\x1b[H\x1b[2J\x1b[3J", end="")
+						continue
+			break
+		except KeyboardInterrupt:
+			raise
+		except AssertionError as e:
+			print(f"\x1b[H\x1b[2J\x1b[3JAn assertion failed during import.\n{e.args[0]}")
+			input('Press enter to import a different map...')
+		except Exception as e:
+			print(f"\x1b[H\x1b[2J\x1b[3JAn error occurred while importing the map:\n{e.__class__.__name__}: {e.args[0]}")
+			input('Press enter to import a different map...')
 	song = []
 	notes = []
 	avg = lambda args: sum(args)/len(args)
